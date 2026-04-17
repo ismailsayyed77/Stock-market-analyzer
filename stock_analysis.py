@@ -5,6 +5,7 @@ import yfinance as yf
 import numpy as np
 import os
 from datetime import datetime
+from utils.indicators import add_moving_averages, calculate_rsi, analyze_trend
 
 os.makedirs('output', exist_ok=True)
 
@@ -39,32 +40,6 @@ def explore_data(data, name):
     print(f"  Lowest close:  {float(data['Close'].min()):.2f}")
     print(f"  Average close: {float(data['Close'].mean()):.2f}")
     print(f"  Missing values:{data.isnull().sum().sum()}")
-
-def add_moving_averages(data):
-    """Add 50-day and 200-day MAs plus daily return %."""
-    if data is None:
-        return None
-    data = data.copy()
-    data['MA50']         = data['Close'].rolling(window=50).mean()
-    data['MA200']        = data['Close'].rolling(window=200).mean()
-    data['daily_return'] = data['Close'].pct_change() * 100
-    print("Moving averages added (MA50, MA200, daily_return)")
-    return data
-
-def calculate_rsi(data, period=14):
-    """Calculate RSI indicator."""
-    if data is None:
-        return None
-    data     = data.copy()
-    delta    = data['Close'].diff()
-    gain     = delta.where(delta > 0, 0)
-    loss     = -delta.where(delta < 0, 0)
-    avg_gain = gain.rolling(window=period).mean()
-    avg_loss = loss.rolling(window=period).mean()
-    rs       = avg_gain / avg_loss
-    data['RSI'] = 100 - (100 / (1 + rs))
-    print(f"RSI calculated with period {period}")
-    return data
 
 def plot_stock_analysis(data, ticker):
     """Create a 3-panel chart: Price + Volume + RSI."""
@@ -110,37 +85,6 @@ def plot_stock_analysis(data, ticker):
     plt.savefig(filename, dpi=150, bbox_inches='tight')
     print(f'Chart saved: {filename}')
     plt.show()
-
-def analyze_trend(data, ticker):
-    """Analyze trend using MAs and RSI."""
-    if data is None or data['MA50'].isna().all():
-        print('Not enough data to analyze.')
-        return
-
-    latest = data.iloc[-1]
-    ma50   = float(latest['MA50'])
-    ma200  = float(latest['MA200'])
-    close  = float(latest['Close'])
-    rsi    = float(latest['RSI']) if 'RSI' in data.columns else None
-
-    print(f'\n=== Trend Report: {ticker} ===')
-    print(f'  Close: {close:.2f}')
-    print(f'  MA50:  {ma50:.2f}')
-    print(f'  MA200: {ma200:.2f}')
-
-    if ma50 > ma200:
-        print('  SIGNAL: UPTREND — Golden Cross (50MA > 200MA)')
-    else:
-        print('  SIGNAL: DOWNTREND — Death Cross (50MA < 200MA)')
-
-    if close > ma50:
-        print('  Price is ABOVE 50-Day MA (bullish short-term)')
-    else:
-        print('  Price is BELOW 50-Day MA (bearish short-term)')
-
-    if rsi is not None:
-        label = 'OVERBOUGHT' if rsi > 70 else ('OVERSOLD' if rsi < 30 else 'Neutral')
-        print(f'  RSI: {rsi:.1f} — {label}')
 
 def compare_stocks(tickers, start='2023-01-01', end='2024-01-01'):
     """Compare stocks on a normalized chart (all start at 100)."""
